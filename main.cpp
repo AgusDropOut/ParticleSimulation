@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cmath>
 
 std::string vertexCode;
 std::string fragmentCode;
@@ -15,7 +16,9 @@ std::ifstream fShaderFile;
 
 
 
+
 #define MaxParticles 2
+#define PI 3.14159f
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -30,13 +33,37 @@ void processInput(GLFWwindow* window) {
 
 int main() {
 
-    //Quad geometry
-    static const GLfloat vertices[] = {
-       -0.5f,-0.5f, 0.0f,
-        0.5f,-0.5f, 0.0f,
-       -0.5f, 0.5f, 0.0f,
-        0.5f, 0.5f, 0.0f,
-    };
+    const int segments = 128;
+    float radius = 0.5f;
+    GLfloat vertices[segments * 3];
+    float tetha = 0;
+    
+ 
+    int i = 3;
+    int segment = 1;
+
+    //GL_TRIANGLE_FAN requieres the initial vertex to be the center
+    vertices[0] = 0;
+    vertices[1] = 0;
+    vertices[2] = 0;
+    while(segment < segments - 1 ){
+
+        tetha         =  segment * 2.0f * PI / segments;
+        vertices[i]   =  std::sin(tetha) * radius;
+        vertices[i+1] =  std::cos(tetha) * radius;
+        vertices[i+2] =  0;
+
+        i = i + 3;
+        segment++;
+    }
+
+    // Also the last vertex needs to connect with the first one
+    vertices[i]   = vertices[3]; 
+    vertices[i+1] = vertices[4]; 
+    vertices[i+2] = 0.0f;        
+
+
+
 
     GLfloat cpu_positions[8] = {
     -0.5f,  0.5f, 0.0f, 0.5f, 
@@ -124,8 +151,8 @@ int main() {
     fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     try {
        
-        vShaderFile.open("../particle.vsh");
-        fShaderFile.open("../particle.fsh");
+        vShaderFile.open("particle.vsh");
+        fShaderFile.open("particle.fsh");
         
         std::stringstream vShaderStream, fShaderStream;
         
@@ -191,7 +218,7 @@ int main() {
         glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 4 * sizeof(GLfloat), cpu_positions);
         glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer);
         glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 4 * sizeof(GLubyte), colors);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, MaxParticles);
+        glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
 
         
         glfwSwapBuffers(window);
