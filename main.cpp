@@ -5,20 +5,17 @@
 #include <sstream>
 #include <string>
 #include <cmath>
-
-std::string vertexCode;
-std::string fragmentCode;
-
-std::ifstream vShaderFile;
-std::ifstream fShaderFile;
-
-
+#include <vector>
+#include <iterator>
+#include "ShaderProgram.hpp"
 
 
 
 
 #define MaxParticles 2
 #define PI 3.14159f
+
+
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -30,6 +27,28 @@ void processInput(GLFWwindow* window) {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 }
+
+struct Particle
+{
+    float position[3];
+    float velocity[3];
+    unsigned char color[4];
+    float size;
+    float life;
+};
+
+std::vector<Particle> particles(MaxParticles);
+
+void updatePositions(float (&positions)[4 * MaxParticles]){
+    int j = 0;
+    for(int i = 0 ; i < std::size(positions) ; i+= 4){
+        positions[i] += particles[j].velocity[0];
+        positions[i+1] += particles[j].velocity[1];
+        positions[i+2] += particles[j].velocity[2];
+        j++;
+    }
+}
+
 
 int main() {
 
@@ -65,7 +84,7 @@ int main() {
 
 
 
-    GLfloat cpu_positions[8] = {
+    GLfloat cpu_positions[4 * MaxParticles] = {
     -0.5f,  0.5f, 0.0f, 0.5f, 
      0.5f, -0.5f, 0.0f, 0.5f  
     };
@@ -74,6 +93,24 @@ int main() {
     255, 0, 0, 255,   
     0, 255, 0, 255  
     };
+
+    particles[0].position[0] = -0.5f;
+    particles[0].position[1] = 0.5f;
+    particles[0].position[2] = 0.0f;
+
+    particles[0].velocity[0] = -0.0005f;
+    particles[0].velocity[1] = 0.0f;
+    particles[0].velocity[2] = 0.0f;
+
+    particles[1].position[0] = 0.5f;
+    particles[1].position[1] = -0.5f;
+    particles[1].position[2] = 0.0f;
+
+    particles[1].velocity[0] = -0.0005f;
+    particles[1].velocity[1] = 0.0f;
+    particles[1].velocity[2] = 0.0f;
+    
+
 
     
 
@@ -147,60 +184,12 @@ int main() {
     glVertexAttribDivisor(2, 1);
     
     
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try {
-       
-        vShaderFile.open("particle.vsh");
-        fShaderFile.open("particle.fsh");
-        
-        std::stringstream vShaderStream, fShaderStream;
-        
-       
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
-        
-        
-        vShaderFile.close();
-        fShaderFile.close();
-        
-        
-        vertexCode   = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
-    }
-    catch (std::ifstream::failure& e) {
-        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
-    }
+    
 
 
     //Shaders
 
-    auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    const GLchar* vShaderCode = vertexCode.c_str();
-    const GLchar* fShaderCode = fragmentCode.c_str();
-
-    glShaderSource(vertex_shader, 1, &vShaderCode, nullptr);
-    glShaderSource(fragment_shader, 1, &fShaderCode, nullptr);
-
-
-    glCompileShader(vertex_shader);
-    glCompileShader(fragment_shader);
-
-    int program_creation_result = glCreateProgram();
-
-    if(program_creation_result == 0){
-        std::cout << "couldnt create the shader program" << std::endl;
-    }
-
-    glAttachShader(program_creation_result,vertex_shader);
-    glAttachShader(program_creation_result,fragment_shader);
-
-    glLinkProgram(program_creation_result);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
+    ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
 
 
@@ -208,11 +197,17 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
+
+        
     
         glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(program_creation_result);
+        shader.use();
+
+        updatePositions(cpu_positions);
+
+        
 
         glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer);
         glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 4 * sizeof(GLfloat), cpu_positions);
@@ -229,3 +224,4 @@ int main() {
     glfwTerminate();
     return 0;
 }
+
