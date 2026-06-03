@@ -8,6 +8,7 @@
 #include <vector>
 #include <iterator>
 #include "ShaderProgram.hpp"
+#include "Window.hpp"
 
 
 
@@ -23,10 +24,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 
-void processInput(GLFWwindow* window) {
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-}
+
 
 struct Particle
 {
@@ -112,30 +110,11 @@ int main() {
     
 
 
+    Window window(800, 600, "Particle Simulation");
+
+
+
     
-
-
-
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Particle Simulation", NULL, NULL);
-    if (window == NULL) {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-   
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cout << "Failed to initialize GLAD" << std::endl;
-        return -1;
-    }
 
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -194,8 +173,8 @@ int main() {
 
 
   
-    while (!glfwWindowShouldClose(window)) {
-        processInput(window);
+    while (!window.shouldClose()) {
+        window.processInput();
 
 
         
@@ -216,12 +195,12 @@ int main() {
         glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
 
         
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        window.swapBuffers();
+        window.pollEvents();
     }
 
    
-    glfwTerminate();
+    
     return 0;
 }
 
