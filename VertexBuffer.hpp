@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <utility>
 #include <span>
+#include <vector>
 
 
 class VertexBuffer {
@@ -33,6 +34,13 @@ class VertexBuffer {
     void setData(const T (&data)[N],GLenum usage){
         bind();
         glBufferData(GL_ARRAY_BUFFER, N * sizeof(T), data, usage);
+    }
+
+    //for vectors
+    template<typename T>
+    void setData(const std::vector<T> &data,GLenum usage){
+        bind();
+        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(T), data.data(), usage);
     }
 
     //Case we only reserve the space
