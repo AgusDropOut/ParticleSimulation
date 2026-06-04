@@ -26,7 +26,7 @@ FetchContent_MakeAvailable(glfw)
 include_directories(include)
 
 
-add_executable(ParticleSimulation main.cpp src/glad.c ShaderProgram.cpp)
+add_executable(ParticleSimulation main.cpp src/glad.c ShaderProgram.cpp VertexArray.hpp VertexBuffer.hpp )
 
 
 target_link_libraries(ParticleSimulation PRIVATE glfw)

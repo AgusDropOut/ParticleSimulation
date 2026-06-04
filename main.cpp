@@ -9,6 +9,8 @@
 #include <iterator>
 #include "ShaderProgram.hpp"
 #include "Window.hpp"
+#include "VertexBuffer.hpp"
+#include "VertexArray.hpp"
 
 
 
@@ -115,56 +117,33 @@ int main() {
 
 
     
+    VertexArray vao{};
 
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+    //Dumbass c++ always wants to declare a function, I miss you Java :c
+    VertexBuffer billboard_vbo{};
+    VertexBuffer positions_vbo{};
+    VertexBuffer color_vbo{};
+
+    //STATIC DRAW because the vertices of the billboard do not change
+    billboard_vbo.setData(vertices,GL_STATIC_DRAW);
+    //STREAM DRAW because positions change really often
+    positions_vbo.setData(MaxParticles * 4 * sizeof(GLfloat),GL_STREAM_DRAW);
+    // STREAM DRAW , idk maybe we will change the color frquently
+    color_vbo.setData(MaxParticles * 4 * sizeof(GLubyte),GL_STREAM_DRAW);
 
 
-    //VBO for the billboard vertices
-    GLuint billboard_vertex_buffer;
-    glGenBuffers(1, &billboard_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, billboard_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); //STATIC DRAW because the vertices of the billboard do not change
-
-    //VBO for the positions
-    GLuint particles_position_buffer;
-    glGenBuffers(1, &particles_position_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer);
-    glBufferData(GL_ARRAY_BUFFER, MaxParticles * 4 * sizeof(GLfloat), NULL, GL_STREAM_DRAW); //STREAM DRAW because positions change really often
-
-    //VBO for the colors
-    GLuint particles_color_buffer;
-    glGenBuffers(1, &particles_color_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer);
-    glBufferData(GL_ARRAY_BUFFER, MaxParticles * 4 * sizeof(GLubyte), NULL, GL_STREAM_DRAW); // STREAM DRAW , idk maybe we will change the color frquently
-
+     // The last 0 on the call Tells the gpu the size of the steps as it reads the vbos, 
+    // we want to read an element at a time for the changing attibs and not move for the base geometry
 
     //1st channel for streaming
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, billboard_vertex_buffer);
-    glVertexAttribPointer(0, 3 , GL_FLOAT,GL_FALSE,0, nullptr);
-
+    vao.addAtributte(billboard_vbo,0,3,GL_FLOAT,GL_FALSE,0);
     // 2nd channel for streaming , size 4 due to attrib x y z size
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, nullptr );
-
-    // 3rd channel for streaming, size 4 due to r g b a, GL_TRUE because chars gor form 0 to 255 and gpus expect a number between 0 and 1
-    glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer);
-    glVertexAttribPointer(2, 4,GL_UNSIGNED_BYTE, GL_TRUE, 0, nullptr);
-
-
-    // Tells the gpu the size of the steps as it reads the vbos, 
-    // we want to read an element at a time for the changing attibs and not move for the base geometry
-    glVertexAttribDivisor(0, 0); 
-    glVertexAttribDivisor(1, 1); 
-    glVertexAttribDivisor(2, 1);
+    vao.addAtributte(positions_vbo,1,4,GL_FLOAT,GL_FALSE,1);
+     // 3rd channel for streaming, size 4 due to r g b a, GL_TRUE because chars gor form 0 to 255 and gpus expect a number between 0 and 1
+    vao.addAtributte(color_vbo,2,4,GL_UNSIGNED_BYTE,GL_TRUE,1);
     
     
     
-
 
     //Shaders
 
@@ -188,10 +167,9 @@ int main() {
 
         
 
-        glBindBuffer(GL_ARRAY_BUFFER, particles_position_buffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 4 * sizeof(GLfloat), cpu_positions);
-        glBindBuffer(GL_ARRAY_BUFFER, particles_color_buffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * 4 * sizeof(GLubyte), colors);
+        
+        positions_vbo.updateSubData( 0, cpu_positions);
+        color_vbo.updateSubData(0,colors);
         glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
 
         
