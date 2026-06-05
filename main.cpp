@@ -12,6 +12,7 @@
 #include "VertexBuffer.hpp"
 #include "VertexArray.hpp"
 #include "GeometryGenerator.cpp"
+#include "ParticleSystem.cpp"
 
 
 
@@ -29,62 +30,18 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 
 
-struct Particle
-{
-    float position[3];
-    float velocity[3];
-    unsigned char color[4];
-    float size;
-    float life;
-};
+
 
 std::vector<Particle> particles(MaxParticles);
 
-void updatePositions(float (&positions)[4 * MaxParticles]){
-    int j = 0;
-    for(int i = 0 ; i < std::size(positions) ; i+= 4){
-        positions[i] += particles[j].velocity[0];
-        positions[i+1] += particles[j].velocity[1];
-        positions[i+2] += particles[j].velocity[2];
-        j++;
-    }
-}
+
 
 
 int main() {
 
     int segments = 128;
     std::vector<GLfloat> vertices = GeometryGenerator::circleGeometry(segments,0.5f);
-            
-
-
-
-
-    GLfloat cpu_positions[4 * MaxParticles] = {
-    -0.5f,  0.5f, 0.0f, 0.5f, 
-     0.5f, -0.5f, 0.0f, 0.5f  
-    };
-
-    GLubyte colors[8] = {
-    255, 0, 0, 255,   
-    0, 255, 0, 255  
-    };
-
-    particles[0].position[0] = -0.5f;
-    particles[0].position[1] = 0.5f;
-    particles[0].position[2] = 0.0f;
-
-    particles[0].velocity[0] = -0.0005f;
-    particles[0].velocity[1] = 0.0f;
-    particles[0].velocity[2] = 0.0f;
-
-    particles[1].position[0] = 0.5f;
-    particles[1].position[1] = -0.5f;
-    particles[1].position[2] = 0.0f;
-
-    particles[1].velocity[0] = -0.0005f;
-    particles[1].velocity[1] = 0.0f;
-    particles[1].velocity[2] = 0.0f;
+    
     
 
 
@@ -126,6 +83,8 @@ int main() {
     ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
 
+    ParticleSystem particleSystem(MaxParticles);
+
 
   
     while (!window.shouldClose()) {
@@ -139,13 +98,15 @@ int main() {
 
         shader.use();
 
-        updatePositions(cpu_positions);
+        particleSystem.update(glfwGetTime());
+
+        particles = particleSystem.getParticles();
 
         
 
         
-        positions_vbo.updateSubData( 0, cpu_positions);
-        color_vbo.updateSubData(0,colors);
+        positions_vbo.updateSubData( 0, particleSystem.positions());
+        color_vbo.updateSubData(0, particleSystem.colors());
         glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
 
         

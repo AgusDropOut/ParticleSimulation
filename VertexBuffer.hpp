@@ -57,4 +57,10 @@ class VertexBuffer {
         glBufferSubData(GL_ARRAY_BUFFER, offset, N * sizeof(T), data);
     }
 
+    template<typename T>
+    void updateSubData(GLintptr offset, const std::vector<T> &data){
+        bind();
+        glBufferSubData(GL_ARRAY_BUFFER, offset, data.size() * sizeof(T), data.data());
+    }
+
 };
