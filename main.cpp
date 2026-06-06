@@ -13,6 +13,7 @@
 #include "VertexArray.hpp"
 #include "GeometryGenerator.cpp"
 #include "ParticleSystem.cpp"
+#include "MouseInteractionHandler.cpp"
 
 
 
@@ -40,12 +41,13 @@ std::vector<Particle> particles(MaxParticles);
 int main() {
 
     int segments = 128;
-    std::vector<GLfloat> vertices = GeometryGenerator::circleGeometry(segments,0.5f);
+    std::vector<GLfloat> vertices = GeometryGenerator::circleGeometry(segments,0.15f);
     
     
 
 
     Window window(800, 600, "Particle Simulation");
+    MouseInteractionHandler interactionHandler(window);
 
 
 
@@ -83,7 +85,7 @@ int main() {
     ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
 
-    ParticleSystem particleSystem(MaxParticles);
+    ParticleSystem particleSystem(MaxParticles, interactionHandler);
 
 
   

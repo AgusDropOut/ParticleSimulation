@@ -1,3 +1,5 @@
+#pragma once
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
@@ -36,6 +38,32 @@ class Window {
                 glfwDestroyWindow(window);
                 glfwTerminate();
             }
+
+            glfwDestroyWindow(window);
+        }
+
+        bool isLeftClickPressed(){
+            return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+        }
+
+        bool isRightClickPressed(){
+            return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        }
+
+        void getMousePos(double &normalizedMouseX, double &normalizedMouseY){
+            double mouseX, mouseY = 0;
+
+            glfwGetCursorPos(window, &mouseX, &mouseY);
+
+
+            int viewPort[4];
+            glGetIntegerv(GL_VIEWPORT, viewPort);
+            double screenX = viewPort[2];
+            double screenY = viewPort[3];
+
+            normalizedMouseX = (mouseX / screenX) * 2 - 1;
+            normalizedMouseY = (mouseY / screenY) * 2 - 1;
+
         }
 
         bool shouldClose(){

@@ -3,8 +3,11 @@
 #include <string>
 #include <cmath>
 #include <vector>
+#include <array>
 #include <iterator>
 #include <glad/glad.h>
+#include "MouseInteractionHandler.cpp"
+#include "Vector3DMath.cpp"
 
 struct Particle
 {
@@ -24,14 +27,18 @@ class ParticleSystem{
         
 
 
-        ParticleSystem(int maxParticles){
+        ParticleSystem(int maxParticles, MouseInteractionHandler & interactionHandler) : interactionHandler(interactionHandler){
             this->maxParticles = maxParticles;
             particles.resize(maxParticles);
             initialize();
+            this->lastFrameTime = 0.0f;
         }
 
         std::vector<GLfloat> positions(){
             std::vector<GLfloat> positions;
+
+            
+            
 
             for(Particle p : particles){
                 positions.push_back(p.position[0]);
@@ -65,15 +72,56 @@ class ParticleSystem{
                 particles[i].position[1] += particles[i].velocity[1] * (deltaTime);
                 particles[i].position[2] += particles[i].velocity[2] * (deltaTime);
 
+                checkWallCollisions(particles[i]);
+                checkMouseInteraction(particles[i]);
                 
             }
 
             lastFrameTime = currentFrameTime;
         }
 
+        void checkMouseInteraction(Particle & p){
+            bool isLeftClicking = interactionHandler.isLeftClicking();
+            bool isRightClicking = interactionHandler.isRightClicking();
+
+            if( isLeftClicking || isRightClicking ){
+                double mouseX;
+                double mouseY;
+                interactionHandler.getMouseCoords(mouseX,mouseY);
+                
+                std::array<float, 3> forceDir = Vector3DMath::normalize(Vector3DMath::substract({mouseX,mouseY,0.0f}, p.position));
+
+                if(isLeftClicking){
+                    p.velocity[0] += forceDir[0];
+                    p.velocity[1] += forceDir[1];
+                    p.velocity[2] += forceDir[2];
+                }
+
+                if(isRightClicking){
+                    
+                    p.velocity[0] += forceDir[0] * -1;
+                    p.velocity[1] += forceDir[1] * -1;
+                    p.velocity[2] += forceDir[2] * -1;
+                }
+
+
+
+            }
+        }
+
+        
+
+        void checkWallCollisions(Particle &p){
+            if( p.position[0] + p.size > 1.0 || p.position[0] -  p.size < -1.0){
+                p.velocity[0] *= -1;
+            }
+
+            if( p.position[1] > 1.0 + p.size || p.position[1] - p.size < -1.0){
+                p.velocity[1] *= -1;
+            }
+        }
+
         std::vector<Particle> getParticles() {
-
-
 
             return particles;
         }
@@ -81,14 +129,15 @@ class ParticleSystem{
 
     private: 
         std::vector<Particle> particles;
+        MouseInteractionHandler & interactionHandler;
 
         float lastFrameTime;
 
         void initialize(){
 
-            particles[0].size = 0.5f;
+            particles[0].size = 0.15f;
 
-            particles[1].size = 0.5f;
+            particles[1].size = 0.15f;
 
             particles[0].position[0] = -0.5f;
             particles[0].position[1] = 0.5f;
