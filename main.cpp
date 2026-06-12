@@ -30,9 +30,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 
 
-
-
-
 std::vector<Particle> particles(MaxParticles);
 
 

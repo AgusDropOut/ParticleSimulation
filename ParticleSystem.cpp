@@ -11,9 +11,9 @@
 
 struct Particle
 {
-    float position[3];
-    float velocity[3];
-    unsigned char color[4];
+    std::array<float, 3> position;
+    std::array<float, 3> velocity;
+    std::array<unsigned char, 4> color;
     float size;
     float life;
 };
@@ -74,7 +74,15 @@ class ParticleSystem{
 
                 checkWallCollisions(particles[i]);
                 checkMouseInteraction(particles[i]);
-                
+                applyFriction(particles[i]);
+
+                for(int j = i ; j < particles.size() ; j++){
+                    
+                    if(j != i){
+                        checkCollision(particles[i], particles[j]);
+                    }
+                }
+
             }
 
             lastFrameTime = currentFrameTime;
@@ -92,16 +100,16 @@ class ParticleSystem{
                 std::array<float, 3> forceDir = Vector3DMath::normalize(Vector3DMath::substract({mouseX,mouseY,0.0f}, p.position));
 
                 if(isLeftClicking){
-                    p.velocity[0] += forceDir[0];
-                    p.velocity[1] += forceDir[1];
-                    p.velocity[2] += forceDir[2];
+                    p.velocity[0] += forceDir[0] * 0.2;
+                    p.velocity[1] += forceDir[1] * 0.2;
+                    p.velocity[2] += forceDir[2] * 0.2;
                 }
 
                 if(isRightClicking){
                     
-                    p.velocity[0] += forceDir[0] * -1;
-                    p.velocity[1] += forceDir[1] * -1;
-                    p.velocity[2] += forceDir[2] * -1;
+                    p.velocity[0] += forceDir[0] * -1 * 0.2;
+                    p.velocity[1] += forceDir[1] * -1 * 0.2;
+                    p.velocity[2] += forceDir[2] * -1 * 0.2;
                 }
 
 
@@ -140,11 +148,11 @@ class ParticleSystem{
             particles[1].size = 0.15f;
 
             particles[0].position[0] = -0.5f;
-            particles[0].position[1] = 0.5f;
+            particles[0].position[1] = 0.64f;
             particles[0].position[2] = 0.0f;
 
-            particles[1].position[0] = 0.5f;
-            particles[1].position[1] = -0.5f;
+            particles[1].position[0] = 0.2f;
+            particles[1].position[1] = 0.62f;
             particles[1].position[2] = 0.0;
             
             
@@ -160,22 +168,70 @@ class ParticleSystem{
             particles[1].color[3] = 255;
 
 
-            particles[0].position[0] = -0.5f;
-            particles[0].position[1] = 0.5f;
-            particles[0].position[2] = 0.0f;
 
             particles[0].velocity[0] = -0.5f;
             particles[0].velocity[1] = 0.0f;
             particles[0].velocity[2] = 0.0f;
 
-            particles[1].position[0] = 0.9f;
-            particles[1].position[1] = -0.9f;
-            particles[1].position[2] = 0.0f;
-
-            particles[1].velocity[0] = -0.5f;
+        
+            particles[1].velocity[0] = 0.5f;
             particles[1].velocity[1] = 0.0f;
             particles[1].velocity[2] = 0.0f;
     
+        }
+
+
+        void checkCollision(Particle & p1, Particle & p2){
+            float c = std::sqrt(std::pow(p1.position[0]-p2.position[0],2.0f) + std::pow(p1.position[1]-p2.position[1],2.0f));
+            
+            if( c < p1.size + p2.size){
+
+                std::array<float, 3> colDir = Vector3DMath::normalize(Vector3DMath::substract(p1.position , p2.position));
+
+                float normal = Vector3DMath::dot( Vector3DMath::substract(p1.velocity,p2.velocity), colDir);
+
+                std::array<float, 3> finalForce = Vector3DMath::scalar(colDir,normal);
+
+                
+
+                
+
+                if(normal > 0){
+                    return;
+                }
+
+                printf("colision");
+
+
+                float overlap   =   (p1.size + p2.size) - c;
+
+                p1.position[0] += colDir[0] * (overlap * 0.5);
+                p1.position[1] += colDir[1] * (overlap * 0.5);
+                p2.position[0] -= colDir[0] * (overlap * 0.5);
+                p2.position[1] -= colDir[1] * (overlap * 0.5);
+
+            
+                p1.velocity[0] -= finalForce[0];
+                p1.velocity[1] -= finalForce[1];
+                p1.velocity[2] -= finalForce[2];
+
+                p2.velocity[0] -= finalForce[0] * -1;
+                p2.velocity[1] -= finalForce[1] * -1;
+                p2.velocity[2] -= finalForce[2] * -1;
+
+                
+
+                
+
+
+            }
+
+        }
+
+        void applyFriction(Particle & p){
+            p.velocity[0] *= 0.998;
+            p.velocity[1] *= 0.998;
+            p.velocity[2] *= 0.998;
         }
 
 

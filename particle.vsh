@@ -16,7 +16,7 @@ void main()
     
     vec3 centerPosition = particlePosition.xyz;
     
-    vec3 finalPosition = centerPosition + (circleVertex * particleSize);
+    vec3 finalPosition = centerPosition + (circleVertex);
     
     gl_Position = vec4(finalPosition, 1.0);
     
