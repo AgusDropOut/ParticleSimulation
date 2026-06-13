@@ -5,6 +5,10 @@
 #include <stdexcept>
 #include <iostream>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 class Window {
     private:
 
@@ -82,5 +86,13 @@ class Window {
 
         void pollEvents(){
             glfwPollEvents();
+        }
+
+        void initializeUI() {
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+            
+            ImGui_ImplGlfw_InitForOpenGL(window, true);
+            ImGui_ImplOpenGL3_Init("#version 330 core");
         }
 };

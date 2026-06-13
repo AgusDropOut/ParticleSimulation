@@ -18,19 +18,12 @@
 
 
 
-#define MaxParticles 2
+
+#define MaxParticles 1000
 
 
 
 
-
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
-}
-
-
-
-std::vector<Particle> particles(MaxParticles);
 
 
 
@@ -38,7 +31,7 @@ std::vector<Particle> particles(MaxParticles);
 int main() {
 
     int segments = 128;
-    std::vector<GLfloat> vertices = GeometryGenerator::circleGeometry(segments,0.15f);
+    std::vector<GLfloat> vertices = GeometryGenerator::circleGeometry(segments,1.0f);
     
     
 
@@ -85,9 +78,14 @@ int main() {
     ParticleSystem particleSystem(MaxParticles, interactionHandler);
 
 
-  
+    window.initializeUI();
+
     while (!window.shouldClose()) {
         window.processInput();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
 
         
@@ -99,19 +97,30 @@ int main() {
 
         particleSystem.update(glfwGetTime());
 
-        particles = particleSystem.getParticles();
-
-        
 
         
         positions_vbo.updateSubData( 0, particleSystem.positions());
         color_vbo.updateSubData(0, particleSystem.colors());
         glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
 
+        ImGui::Begin("Engine Metrics");
+        ImGui::Text("Active Particles: %d", particleSystem.maxParticles);
+        ImGui::Text("Application average %.1f FPS (%.3f ms/frame)", 
+                ImGui::GetIO().Framerate, 
+                1000.0f / ImGui::GetIO().Framerate);
+        
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
         window.swapBuffers();
         window.pollEvents();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
    
     

@@ -8,6 +8,7 @@
 #include <glad/glad.h>
 #include "MouseInteractionHandler.cpp"
 #include "Vector3DMath.cpp"
+#include <cstdint>
 
 struct Particle
 {
@@ -16,6 +17,30 @@ struct Particle
     std::array<unsigned char, 4> color;
     float size;
     float life;
+};
+
+
+
+struct FastRNG {
+    uint32_t state; 
+    static constexpr float NormalizeMultiplier = 1.0f / static_cast<float>(std::numeric_limits<uint32_t>::max());
+
+    uint32_t next() {
+        uint32_t x = state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        state = x;
+        return x;
+    }
+
+    float nextFloat(){
+        return next() * NormalizeMultiplier;
+    }
+
+    int nextColor(){
+        return nextFloat() * 255;
+    }
 };
 
 class ParticleSystem{
@@ -122,10 +147,12 @@ class ParticleSystem{
         void checkWallCollisions(Particle &p){
             if( p.position[0] + p.size > 1.0 || p.position[0] -  p.size < -1.0){
                 p.velocity[0] *= -1;
+                //p.position[0] += p.velocity[0];
             }
 
-            if( p.position[1] > 1.0 + p.size || p.position[1] - p.size < -1.0){
+            if( p.position[1] > 0.9 + p.size || p.position[1] - p.size < -1.0){
                 p.velocity[1] *= -1;
+                //p.position[1] += p.velocity[1];
             }
         }
 
@@ -143,40 +170,26 @@ class ParticleSystem{
 
         void initialize(){
 
-            particles[0].size = 0.15f;
+            FastRNG random;
+            random.state = 10;
 
-            particles[1].size = 0.15f;
+            for(int i = 0 ; i < maxParticles ; i++){
 
-            particles[0].position[0] = -0.5f;
-            particles[0].position[1] = 0.64f;
-            particles[0].position[2] = 0.0f;
+                particles[i].size = random.nextFloat() *  (0.1f - 0.01f) + 0.01f;
 
-            particles[1].position[0] = 0.2f;
-            particles[1].position[1] = 0.62f;
-            particles[1].position[2] = 0.0;
-            
-            
+                particles[i].position[0] = random.nextFloat();
+                particles[i].position[1] = random.nextFloat();
+                particles[i].position[2] = 0;
 
-            particles[0].color[0] = 255;
-            particles[0].color[1] = 0;
-            particles[0].color[2] = 0;
-            particles[0].color[3] = 255;
+                particles[i].color[0] = random.nextColor();
+                particles[i].color[1] = random.nextColor();
+                particles[i].color[2] = random.nextColor();
+                particles[i].color[3] = 255;
 
-            particles[1].color[0] = 0;
-            particles[1].color[1] = 255;
-            particles[1].color[2] = 0;
-            particles[1].color[3] = 255;
-
-
-
-            particles[0].velocity[0] = -0.5f;
-            particles[0].velocity[1] = 0.0f;
-            particles[0].velocity[2] = 0.0f;
-
-        
-            particles[1].velocity[0] = 0.5f;
-            particles[1].velocity[1] = 0.0f;
-            particles[1].velocity[2] = 0.0f;
+                particles[i].velocity[0] = random.nextFloat() *  (1 + 1) - 1;
+                particles[i].velocity[1] = random.nextFloat() *  (1 + 1) - 1;
+                particles[i].velocity[2] = 0;
+            }
     
         }
 
@@ -200,7 +213,7 @@ class ParticleSystem{
                     return;
                 }
 
-                printf("colision");
+              
 
 
                 float overlap   =   (p1.size + p2.size) - c;
