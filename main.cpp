@@ -16,15 +16,7 @@
 #include "MouseInteractionHandler.cpp"
 
 
-
-
-
-#define MaxParticles 1000
-
-
-
-
-
+#define MaxParticles 500
 
 
 

@@ -18,16 +18,12 @@ This project is structured around incremental performance and physics complexity
   - Streaming VBOs for dynamic position and color updates.
   - Instanced Rendering via `glDrawArraysInstanced`.
 
-- [ ] **Phase 2: Physics & Interactivity**
+- [X] **Phase 2: Physics & Interactivity**
   - Implement Delta Time loop for framerate-independent physics.
   - Add basic collision detection (AABB or screen boundaries).
   - Mouse interaction (repulsion/attraction forces).
 
-- [ ] **Phase 3: The N-Body Problem**
-  - Implement gravitational attraction between all particles.
-  - Color mapping based on particle velocity/mass.
 
-- [ ] **Phase 4: The 1-Million Particle Challenge (Performance)**
+- [ ] **Phase 3: The 1-Million Particle Challenge (Performance)**
   - Migrate calculations from raw loops to CPU Multithreading (Thread pools).
   - Implement Spatial Partitioning (Grid/Quadtree) to optimize $O(N^2)$ complexity.
-  - *Stretch Goal:* Port the physics integration step to the GPU using Compute Shaders.
