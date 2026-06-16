@@ -16,7 +16,10 @@
 #include "MouseInteractionHandler.cpp"
 
 
-#define MaxParticles 500
+
+
+
+
 
 
 
@@ -44,9 +47,9 @@ int main() {
     //STATIC DRAW because the vertices of the billboard do not change
     billboard_vbo.setData(vertices,GL_STATIC_DRAW);
     //STREAM DRAW because positions change really often
-    positions_vbo.setData(MaxParticles * 4 * sizeof(GLfloat),GL_STREAM_DRAW);
+    positions_vbo.setData(ParticleSystem::maxParticles * 4 * sizeof(GLfloat),GL_STREAM_DRAW);
     // STREAM DRAW , idk maybe we will change the color frquently
-    color_vbo.setData(MaxParticles * 4 * sizeof(GLubyte),GL_STREAM_DRAW);
+    color_vbo.setData(ParticleSystem::maxParticles * 4 * sizeof(GLubyte),GL_STREAM_DRAW);
 
 
      // The last 0 on the call Tells the gpu the size of the steps as it reads the vbos, 
@@ -66,8 +69,9 @@ int main() {
 
     ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
+    GridLayout grid(100,100, ParticleSystem::maxParticles);
 
-    ParticleSystem particleSystem(MaxParticles, interactionHandler);
+    ParticleSystem particleSystem(interactionHandler, grid);
 
 
     window.initializeUI();
@@ -93,7 +97,7 @@ int main() {
         
         positions_vbo.updateSubData( 0, particleSystem.positions());
         color_vbo.updateSubData(0, particleSystem.colors());
-        glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, MaxParticles);
+        glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, segments, ParticleSystem::maxParticles);
 
         ImGui::Begin("Engine Metrics");
         ImGui::Text("Active Particles: %d", particleSystem.maxParticles);

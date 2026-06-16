@@ -8,16 +8,12 @@
 #include <glad/glad.h>
 #include "MouseInteractionHandler.cpp"
 #include "Vector3DMath.cpp"
+#include "GridLayout.cpp"
 #include <cstdint>
+#include "Particle.hpp"
 
-struct Particle
-{
-    std::array<float, 3> position;
-    std::array<float, 3> velocity;
-    std::array<unsigned char, 4> color;
-    float size;
-    float life;
-};
+
+
 
 
 
@@ -47,14 +43,13 @@ class ParticleSystem{
 
     public: 
 
-        int maxParticles;
+        static constexpr const int maxParticles = 10000;
+        static constexpr const float maxParticleSize = 0.01f;
 
-        
 
 
-        ParticleSystem(int maxParticles, MouseInteractionHandler & interactionHandler) : interactionHandler(interactionHandler){
-            this->maxParticles = maxParticles;
-            particles.resize(maxParticles);
+
+        ParticleSystem( MouseInteractionHandler & interactionHandler, GridLayout & grid) : interactionHandler(interactionHandler), grid(grid){
             initialize();
             this->lastFrameTime = 0.0f;
         }
@@ -92,23 +87,54 @@ class ParticleSystem{
 
             
             float deltaTime = currentFrameTime - lastFrameTime;
+            grid.mapParticlesToSectors(particles);
             for(int i = 0 ; i < particles.size() ; i++){
                 particles[i].position[0] += particles[i].velocity[0] * (deltaTime);
                 particles[i].position[1] += particles[i].velocity[1] * (deltaTime);
                 particles[i].position[2] += particles[i].velocity[2] * (deltaTime);
 
+            
                 checkWallCollisions(particles[i]);
                 checkMouseInteraction(particles[i]);
                 applyFriction(particles[i]);
-
-                for(int j = i ; j < particles.size() ; j++){
-                    
-                    if(j != i){
-                        checkCollision(particles[i], particles[j]);
-                    }
-                }
+                
 
             }
+
+
+
+            int sectorCount = grid.maxColumns * grid.maxRows;
+            for(int sector = 0 ; sector < sectorCount ; sector++){
+                
+                int particleIndex = grid.getFirstParticleFromSector(sector);
+                std::array<int, 4> neighbors =  grid.getNeighborSectors(sector);
+                while(particleIndex != -1){
+
+                    int otherParticleIndex = grid.getNextParticleIndex(particleIndex); 
+                    while(otherParticleIndex != -1){
+                        
+                        checkCollision(particles[particleIndex],particles[otherParticleIndex]);
+                        otherParticleIndex = grid.getNextParticleIndex(otherParticleIndex); 
+                    }
+                    
+
+
+                    for(int neighbor : neighbors){
+                        if(neighbor != -1){
+                            int particleNearbyIndex = grid.getFirstParticleFromSector(neighbor);
+                            while(particleNearbyIndex != -1){
+                                checkCollision(particles[particleIndex], particles[particleNearbyIndex]);
+                                particleNearbyIndex = grid.getNextParticleIndex(particleNearbyIndex);
+                            }
+                        }
+                    }
+                    particleIndex = grid.getNextParticleIndex(particleIndex);
+                }
+            }
+                    
+                
+
+            
 
             lastFrameTime = currentFrameTime;
         }
@@ -156,15 +182,16 @@ class ParticleSystem{
             }
         }
 
-        std::vector<Particle> getParticles() {
+        std::array<Particle, maxParticles> getParticles() {
 
             return particles;
         }
 
 
     private: 
-        std::vector<Particle> particles;
+        std::array<Particle, maxParticles> particles;
         MouseInteractionHandler & interactionHandler;
+        GridLayout & grid;
 
         float lastFrameTime;
 
@@ -175,7 +202,7 @@ class ParticleSystem{
 
             for(int i = 0 ; i < maxParticles ; i++){
 
-                particles[i].size = random.nextFloat() *  (0.01f - 0.01f) + 0.01f;
+                particles[i].size = random.nextFloat() *  (maxParticleSize - 0.01f) + 0.01f;
 
                 particles[i].position[0] = random.nextFloat();
                 particles[i].position[1] = random.nextFloat();
@@ -195,9 +222,20 @@ class ParticleSystem{
 
 
         void checkCollision(Particle & p1, Particle & p2){
-            float c = std::sqrt(std::pow(p1.position[0]-p2.position[0],2.0f) + std::pow(p1.position[1]-p2.position[1],2.0f));
+
+            // Here we do a little optimization
+            // pows and sqrts are really slow. If I can avoid using them, I will do
             
-            if( c < p1.size + p2.size){
+            float a = p1.position[0]-p2.position[0];
+            float b = p1.position[1]-p2.position[1];
+            // pow(x,2) is just mutiplying the number two times
+            float c_squared = a * a + b * b;
+            float overlap = p1.size + p2.size;
+            // instead of doing an sqrt to restore the units, we "pow()" the righ side to fulfill the inequation
+            // Here we are reasembling the original code c = sqrt(pow(a,2)+pow(b,2))
+            // The original version was really slow, now I gained +40fps
+            if( c_squared < overlap * overlap){
+                float c = std::sqrt(c_squared);
 
                 std::array<float, 3> colDir = Vector3DMath::normalize(Vector3DMath::substract(p1.position , p2.position));
 
@@ -245,6 +283,10 @@ class ParticleSystem{
             p.velocity[0] *= 0.998;
             p.velocity[1] *= 0.998;
             p.velocity[2] *= 0.998;
+        }
+
+        void applyGravity(Particle & p){
+            p.position[1] -= 0.001; 
         }
 
 
