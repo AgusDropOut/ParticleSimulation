@@ -31,7 +31,7 @@ int main() {
     
 
 
-    Window window(800, 600, "Particle Simulation");
+    Window window(1600, 1200, "Particle Simulation");
     MouseInteractionHandler interactionHandler(window);
 
 
@@ -69,7 +69,7 @@ int main() {
 
     ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
-    GridLayout grid(100,100, ParticleSystem::maxParticles);
+    GridLayout grid(300,300, ParticleSystem::maxParticles);
 
     ParticleSystem particleSystem(interactionHandler, grid);
 

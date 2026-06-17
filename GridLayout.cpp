@@ -34,6 +34,8 @@ class GridLayout {
 
         int getSectorFromParticle(Particle p){
 
+            
+
             int column = std::min(static_cast<int>(std::floor((std::max(p.position[0], -1.0f) + 1)/2 * maxColumns)), maxColumns-1);
             int row = std::min(static_cast<int>(std::floor((std::max(p.position[1], -1.0f) + 1)/2 * maxRows)), maxRows-1);
             
@@ -50,8 +52,8 @@ class GridLayout {
         int getFirstParticleFromSector(int sector) {
             return head[sector];
         }
-        template<size_t N>
-        void mapParticlesToSectors(const std::array<Particle, N>& particles){
+       
+        void mapParticlesToSectors(const std::vector<Particle>& particles){
             std::fill(head.begin(), head.end(), -1);
             std::fill(next.begin(), next.end(), -1);
             for(int i = 0 ; i < particles.size() ; i++){

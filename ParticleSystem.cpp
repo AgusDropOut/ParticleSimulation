@@ -5,12 +5,14 @@
 #include <vector>
 #include <array>
 #include <iterator>
+#include <future>
 #include <glad/glad.h>
 #include "MouseInteractionHandler.cpp"
 #include "Vector3DMath.cpp"
 #include "GridLayout.cpp"
 #include <cstdint>
 #include "Particle.hpp"
+#include "ThreadPool.hpp"
 
 
 
@@ -44,23 +46,26 @@ class ParticleSystem{
     public: 
 
         static constexpr const int maxParticles = 10000;
-        static constexpr const float maxParticleSize = 0.01f;
+        static constexpr const float maxParticleSize = 0.002f;
+        static constexpr const float minParticleSize = 0.002f;
+        static constexpr const int threadCount = 16;
 
 
 
 
-        ParticleSystem( MouseInteractionHandler & interactionHandler, GridLayout & grid) : interactionHandler(interactionHandler), grid(grid){
+        ParticleSystem( MouseInteractionHandler & interactionHandler, GridLayout & grid, ThreadPool & pool) : interactionHandler(interactionHandler), grid(grid), pool(pool){
+            particles.resize(maxParticles);
             initialize();
             this->lastFrameTime = 0.0f;
         }
 
         std::vector<GLfloat> positions(){
             std::vector<GLfloat> positions;
-
+            positions.reserve(maxParticles * 4);
             
             
 
-            for(Particle p : particles){
+            for(const auto& p : particles){
                 positions.push_back(p.position[0]);
                 positions.push_back(p.position[1]);
                 positions.push_back(p.position[2]);
@@ -71,74 +76,148 @@ class ParticleSystem{
         }
 
         std::vector<GLchar> colors(){
-            std::vector<GLchar> positions;
-
-            for(Particle p : particles){
-                positions.push_back(p.color[0]);
-                positions.push_back(p.color[1]);
-                positions.push_back(p.color[2]);
-                positions.push_back(p.color[2]);
+            std::vector<GLchar> colors;
+            colors.reserve(maxParticles * 4);
+            for(const auto& p : particles){
+                colors.push_back(p.color[0]);
+                colors.push_back(p.color[1]);
+                colors.push_back(p.color[2]);
+                colors.push_back(p.color[3]);
             }
 
-            return positions;
+            return colors;
         }
 
         void update(float currentFrameTime){
 
-            
-            float deltaTime = currentFrameTime - lastFrameTime;
             grid.mapParticlesToSectors(particles);
-            for(int i = 0 ; i < particles.size() ; i++){
-                particles[i].position[0] += particles[i].velocity[0] * (deltaTime);
-                particles[i].position[1] += particles[i].velocity[1] * (deltaTime);
-                particles[i].position[2] += particles[i].velocity[2] * (deltaTime);
-
+            float deltaTime = currentFrameTime - lastFrameTime;
+            std::array<std::future<void>, threadCount> tasks;
             
-                checkWallCollisions(particles[i]);
-                checkMouseInteraction(particles[i]);
-                applyFriction(particles[i]);
-                
+            
+            int particlesPerTask = std::ceil(maxParticles/threadCount);
+            
+            for(int taskIndex = 0 ; taskIndex < threadCount ; taskIndex++){
+                int startParticleIndex = particlesPerTask*taskIndex;
+                int endParticleIndex   = (taskIndex == threadCount - 1) ? maxParticles : (startParticleIndex + particlesPerTask);
+                tasks[taskIndex] = std::async(std::launch::async, [&,startParticleIndex, endParticleIndex, deltaTime](){
+                    for(int i = startParticleIndex ; i < endParticleIndex ; i++){
+                       
+                        particles[i].position[0] += particles[i].velocity[0] * (deltaTime);
+                        particles[i].position[1] += particles[i].velocity[1] * (deltaTime);
+                        particles[i].position[2] += particles[i].velocity[2] * (deltaTime);
 
+                    
+                        checkWallCollisions(particles[i]);
+                        checkMouseInteraction(particles[i]);
+                        applyFriction(particles[i]);
+                        
+
+                    }
+                });
             }
 
 
 
-            int sectorCount = grid.maxColumns * grid.maxRows;
-            for(int sector = 0 ; sector < sectorCount ; sector++){
+            for(std::future<void> & task : tasks){
+                task.get();
+            }
+
+            
+            
+            int columnsPerTask = grid.maxColumns / threadCount; 
+            if (columnsPerTask < 1) columnsPerTask = 1;
+
+            for(int taskIndex = 0 ; taskIndex < threadCount ; taskIndex++){
+                int startCol = taskIndex * columnsPerTask + taskIndex;
+                int endCol = startCol + columnsPerTask;
+                tasks[taskIndex] = std::async(std::launch::async, [&,startCol, endCol](){
+
                 
-                int particleIndex = grid.getFirstParticleFromSector(sector);
-                std::array<int, 4> neighbors =  grid.getNeighborSectors(sector);
-                while(particleIndex != -1){
-
-                    int otherParticleIndex = grid.getNextParticleIndex(particleIndex); 
-                    while(otherParticleIndex != -1){
+                    int sectorCount = grid.maxColumns * grid.maxRows;
+                    for(int sector = 0 ; sector < sectorCount ; sector++){
+                        int currentCol = sector % grid.maxColumns;
+                        if(currentCol < startCol || currentCol > endCol) continue;
                         
-                        checkCollision(particles[particleIndex],particles[otherParticleIndex]);
-                        otherParticleIndex = grid.getNextParticleIndex(otherParticleIndex); 
-                    }
-                    
-
-
-                    for(int neighbor : neighbors){
-                        if(neighbor != -1){
-                            int particleNearbyIndex = grid.getFirstParticleFromSector(neighbor);
-                            while(particleNearbyIndex != -1){
-                                checkCollision(particles[particleIndex], particles[particleNearbyIndex]);
-                                particleNearbyIndex = grid.getNextParticleIndex(particleNearbyIndex);
+                        int particleIndex = grid.getFirstParticleFromSector(sector);
+                        std::array<int, 4> neighbors =  grid.getNeighborSectors(sector);
+                        while(particleIndex != -1){
+                            // beetween the same sector
+                            int otherParticleIndex = grid.getNextParticleIndex(particleIndex); 
+                            while(otherParticleIndex != -1){
+                                
+                                checkCollision(particles[particleIndex],particles[otherParticleIndex]);
+                                otherParticleIndex = grid.getNextParticleIndex(otherParticleIndex); 
                             }
+                            
+
+                            // with neighbor sectors
+                            for(int neighbor : neighbors){
+                                // Also we need to check if its beetween rank
+                                
+                                if(neighbor != -1){
+                                    int neighborCol = neighbor % grid.maxColumns;
+                                    if(neighborCol < startCol || neighborCol > endCol) continue;
+
+                                    int particleNearbyIndex = grid.getFirstParticleFromSector(neighbor);
+                                    while(particleNearbyIndex != -1){
+                                        checkCollision(particles[particleIndex], particles[particleNearbyIndex]);
+                                        particleNearbyIndex = grid.getNextParticleIndex(particleNearbyIndex);
+                                    }
+                                }
+                            }
+                            particleIndex = grid.getNextParticleIndex(particleIndex);
                         }
                     }
-                    particleIndex = grid.getNextParticleIndex(particleIndex);
-                }
+                
+                });
+
+                
+            }   
+            
+            for(std::future<void> & task : tasks){
+                    task.get();
             }
+
+            // Buffer zones time
+            int sectorCount = grid.maxColumns * grid.maxRows;
+            for(int sector = 0 ; sector < sectorCount ; sector++){
+                    int currentCol = sector % grid.maxColumns;
+                    bool isWithinReach = ((currentCol + 1) % columnsPerTask == 0) && (currentCol < grid.maxColumns - 1);
+                    if(!isWithinReach) continue;
+                        
+                    int particleIndex = grid.getFirstParticleFromSector(sector);
+                    std::array<int, 4> neighbors =  grid.getNeighborSectors(sector);
+                    while(particleIndex != -1){
+                            // beetween the same sector
+                        int otherParticleIndex = grid.getNextParticleIndex(particleIndex); 
+                        while(otherParticleIndex != -1){
+                                
+                            checkCollision(particles[particleIndex],particles[otherParticleIndex]);
+                            otherParticleIndex = grid.getNextParticleIndex(otherParticleIndex); 
+                        }
+                            
+
+                        // with neighbor sectors
+                        for(int neighbor : neighbors){
+                            if(neighbor != -1){
+                                int particleNearbyIndex = grid.getFirstParticleFromSector(neighbor);
+                                while(particleNearbyIndex != -1){
+                                    checkCollision(particles[particleIndex], particles[particleNearbyIndex]);
+                                    particleNearbyIndex = grid.getNextParticleIndex(particleNearbyIndex);
+                                }
+                            }
+                        }
+                            particleIndex = grid.getNextParticleIndex(particleIndex);
+                        }
                     
                 
-
-            
+            }
 
             lastFrameTime = currentFrameTime;
         }
 
+   
         void checkMouseInteraction(Particle & p){
             bool isLeftClicking = interactionHandler.isLeftClicking();
             bool isRightClicking = interactionHandler.isRightClicking();
@@ -148,19 +227,23 @@ class ParticleSystem{
                 double mouseY;
                 interactionHandler.getMouseCoords(mouseX,mouseY);
                 
-                std::array<float, 3> forceDir = Vector3DMath::normalize(Vector3DMath::substract({mouseX,mouseY,0.0f}, p.position));
+                std::array<float, 3> diff = Vector3DMath::substract({mouseX,mouseY,0.0f}, p.position);
+                float distSq = diff[0]*diff[0] + diff[1]*diff[1];
 
-                if(isLeftClicking){
-                    p.velocity[0] += forceDir[0] * 0.2;
-                    p.velocity[1] += forceDir[1] * 0.2;
-                    p.velocity[2] += forceDir[2] * 0.2;
-                }
+                if (distSq > 0.000001f) {
+                    std::array<float, 3> forceDir = Vector3DMath::normalize(diff);
 
-                if(isRightClicking){
-                    
-                    p.velocity[0] += forceDir[0] * -1 * 0.2;
-                    p.velocity[1] += forceDir[1] * -1 * 0.2;
-                    p.velocity[2] += forceDir[2] * -1 * 0.2;
+                    if(isLeftClicking){
+                        p.velocity[0] += forceDir[0] * 0.2f;
+                        p.velocity[1] += forceDir[1] * 0.2f;
+                        p.velocity[2] += forceDir[2] * 0.2f;
+                    }
+
+                    if(isRightClicking){
+                        p.velocity[0] -= forceDir[0] * 0.2f;
+                        p.velocity[1] -= forceDir[1] * 0.2f;
+                        p.velocity[2] -= forceDir[2] * 0.2f;
+                    }
                 }
 
 
@@ -171,27 +254,38 @@ class ParticleSystem{
         
 
         void checkWallCollisions(Particle &p){
-            if( p.position[0] + p.size > 1.0 || p.position[0] -  p.size < -1.0){
-                p.velocity[0] *= -1;
-                //p.position[0] += p.velocity[0];
+           
+            if (p.position[0] + p.size > 1.0f) {
+                p.position[0] = 1.0f - p.size; 
+                p.velocity[0] *= -1.0f;        
+            } 
+            else if (p.position[0] - p.size < -1.0f) {
+                p.position[0] = -1.0f + p.size; 
+                p.velocity[0] *= -1.0f;
             }
 
-            if( p.position[1] > 0.9 + p.size || p.position[1] - p.size < -1.0){
-                p.velocity[1] *= -1;
-                //p.position[1] += p.velocity[1];
+
+            if (p.position[1] + p.size > 0.9f) {
+                p.position[1] = 0.9f - p.size;
+                p.velocity[1] *= -1.0f;
+            } 
+            else if (p.position[1] - p.size < -1.0f) {
+                p.position[1] = -1.0f + p.size;
+                p.velocity[1] *= -1.0f;
             }
         }
 
-        std::array<Particle, maxParticles> getParticles() {
+        std::vector<Particle>& getParticles() {
 
             return particles;
         }
 
 
     private: 
-        std::array<Particle, maxParticles> particles;
+        std::vector<Particle> particles;
         MouseInteractionHandler & interactionHandler;
         GridLayout & grid;
+        ThreadPool & pool;
 
         float lastFrameTime;
 
@@ -202,10 +296,10 @@ class ParticleSystem{
 
             for(int i = 0 ; i < maxParticles ; i++){
 
-                particles[i].size = random.nextFloat() *  (maxParticleSize - 0.01f) + 0.01f;
+                particles[i].size = random.nextFloat() *  (maxParticleSize - minParticleSize) + minParticleSize;
 
-                particles[i].position[0] = random.nextFloat();
-                particles[i].position[1] = random.nextFloat();
+                particles[i].position[0] = (random.nextFloat() * 2) - 1;
+                particles[i].position[1] = (random.nextFloat() * 2) - 1;
                 particles[i].position[2] = 0;
 
                 particles[i].color[0] = random.nextColor();
@@ -235,6 +329,12 @@ class ParticleSystem{
             // Here we are reasembling the original code c = sqrt(pow(a,2)+pow(b,2))
             // The original version was really slow, now I gained +40fps
             if( c_squared < overlap * overlap){
+
+                if (c_squared < 0.000001f) {
+                   
+                    p1.position[0] += 0.001f;
+                    return; 
+                }
                 float c = std::sqrt(c_squared);
 
                 std::array<float, 3> colDir = Vector3DMath::normalize(Vector3DMath::substract(p1.position , p2.position));
