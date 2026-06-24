@@ -69,9 +69,10 @@ int main() {
 
     ShaderProgram shader("../particle.vsh", "../particle.fsh");
 
-    GridLayout grid(300,300, ParticleSystem::maxParticles);
+    GridLayout grid(1,1, ParticleSystem::maxParticles);
+    ThreadPool pool(ParticleSystem::threadCount);
 
-    ParticleSystem particleSystem(interactionHandler, grid);
+    ParticleSystem particleSystem(interactionHandler, grid, pool);
 
 
     window.initializeUI();

@@ -45,10 +45,10 @@ class ParticleSystem{
 
     public: 
 
-        static constexpr const int maxParticles = 10000;
-        static constexpr const float maxParticleSize = 0.002f;
-        static constexpr const float minParticleSize = 0.002f;
-        static constexpr const int threadCount = 16;
+        static constexpr const int maxParticles = 10;
+        static constexpr const float maxParticleSize = 0.08f;
+        static constexpr const float minParticleSize = 0.04f;
+        static constexpr const int threadCount = 1;
 
 
 
@@ -96,11 +96,15 @@ class ParticleSystem{
             
             
             int particlesPerTask = std::ceil(maxParticles/threadCount);
+
+            std::atomic<int> activeTasks = threadCount;
+            std::mutex syncMutex;
+            std::condition_variable syncCv;
             
             for(int taskIndex = 0 ; taskIndex < threadCount ; taskIndex++){
                 int startParticleIndex = particlesPerTask*taskIndex;
                 int endParticleIndex   = (taskIndex == threadCount - 1) ? maxParticles : (startParticleIndex + particlesPerTask);
-                tasks[taskIndex] = std::async(std::launch::async, [&,startParticleIndex, endParticleIndex, deltaTime](){
+                pool.queuTask([&,startParticleIndex, endParticleIndex, deltaTime](){
                     for(int i = startParticleIndex ; i < endParticleIndex ; i++){
                        
                         particles[i].position[0] += particles[i].velocity[0] * (deltaTime);
@@ -114,14 +118,27 @@ class ParticleSystem{
                         
 
                     }
+
+                    //wake up main thread if all workers finished
+                    if(--activeTasks == 0){
+                        std::lock_guard<std::mutex> lock(syncMutex);
+                        syncCv.notify_one();
+                    }
+
+
                 });
             }
 
 
 
-            for(std::future<void> & task : tasks){
-                task.get();
-            }
+            //Main waits here till all active threas finishes
+            // I did it this way cause in c++ 17 we dont have std::barrier :c
+            std::unique_lock<std::mutex> lock(syncMutex);
+            syncCv.wait(lock, [&] (){
+                return activeTasks == 0;
+            });
+
+            activeTasks = threadCount;
 
             
             
@@ -131,7 +148,7 @@ class ParticleSystem{
             for(int taskIndex = 0 ; taskIndex < threadCount ; taskIndex++){
                 int startCol = taskIndex * columnsPerTask + taskIndex;
                 int endCol = startCol + columnsPerTask;
-                tasks[taskIndex] = std::async(std::launch::async, [&,startCol, endCol](){
+                pool.queuTask( [&,startCol, endCol](){
 
                 
                     int sectorCount = grid.maxColumns * grid.maxRows;
@@ -169,15 +186,23 @@ class ParticleSystem{
                             particleIndex = grid.getNextParticleIndex(particleIndex);
                         }
                     }
+
+                    //wake up main thread if all workers finished
+                    if(--activeTasks == 0){
+                        std::lock_guard<std::mutex> lock(syncMutex);
+                        syncCv.notify_one();
+                    }
                 
                 });
 
                 
             }   
             
-            for(std::future<void> & task : tasks){
-                    task.get();
-            }
+            //Main waits here till all active threas finishes
+            // I did it this way cause in c++ 17 we dont have std::barrier :c
+            syncCv.wait(lock, [&] (){
+                return activeTasks == 0;
+            });
 
             // Buffer zones time
             int sectorCount = grid.maxColumns * grid.maxRows;
@@ -302,9 +327,15 @@ class ParticleSystem{
                 particles[i].position[1] = (random.nextFloat() * 2) - 1;
                 particles[i].position[2] = 0;
 
-                particles[i].color[0] = random.nextColor();
-                particles[i].color[1] = random.nextColor();
-                particles[i].color[2] = random.nextColor();
+                
+
+                float normX = (particles[i].position[0] + 1.0f) * 0.5f;
+                float normY = (particles[i].position[1] + 1.0f) * 0.5f;
+
+       
+                particles[i].color[0] = static_cast<GLchar>(normX * 255);          
+                particles[i].color[1] = static_cast<GLchar>(normY * 255);                 
+                particles[i].color[2] = static_cast<GLchar>((1.0f - normX) * 255); 
                 particles[i].color[3] = 255;
 
                 particles[i].velocity[0] = random.nextFloat() *  (1 + 1) - 1;
