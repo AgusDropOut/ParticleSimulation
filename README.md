@@ -1,6 +1,12 @@
+
+
+
+
 # 2D Particle Simulation Engine
 
-![Simulation Showcase](link_to_showcase_gif_here.gif)
+https://github.com/user-attachments/assets/5e317445-0013-4c61-85df-37f44c213f54
+
+
 *A real-time simulation of 10,000 particles interacting with screen boundaries and mouse forces, color-mapped via normalized UV coordinates to visualize flow.*
 
 A highly optimized, hardware-accelerated 2D particle simulation engine built from scratch in C++17 and OpenGL.
@@ -25,7 +31,8 @@ The primary goal of this project is to explore low-level graphics API architectu
 
 ## Performance Benchmarks (Ryzen 7 5700X)
 
-![100k Benchmark](link_to_100k_benchmark_gif_here.gif)
+https://github.com/user-attachments/assets/b2139b82-07b6-4e46-90b6-f9a1f2e73421
+
 *Stress test: 100,000 active particles rendering at stable framerates.*
 
 * **Pure Single-Threaded $O(N^2)$ Baseline:** Stack overflow limits / Unplayable slide-show.
