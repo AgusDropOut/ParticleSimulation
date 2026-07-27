@@ -60,3 +60,38 @@ https://github.com/user-attachments/assets/b2139b82-07b6-4e46-90b6-f9a1f2e73421
   - Implemented lock-free column-based slicing for safe parallel physical simulation.
   - **Refactor:** Replaced `std::async` with a custom Persistent Thread Pool to fix task allocation stuttering.
   - Implemented explicit thread synchronization using `std::unique_lock`, `std::condition_variable`, and atomics.
+     
+
+## How to Build and Run
+
+### Prerequisites
+* CMake (3.15 or higher)
+* A C++17 compatible compiler (GCC, Clang, or MSVC)
+* Git (for fetching dependencies like GLFW and Dear ImGui)
+
+### Build Instructions
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/agusdropout/ParticleSimulation.git](https://github.com/agusdropout/ParticleSimulation.git)
+   cd ParticleSimulation  
+
+Generate the build files and compile:
+
+ ```bash
+  mkdir build
+  cd build
+  cmake ..
+  cmake --build . --config Release
+```
+
+```bash
+# From the build folder, go back to the root directory
+cd ..
+
+# Run the executable (Windows)
+.\build\Debug\ParticleSimulation.exe
+# Note: Path may vary slightly depending on your compiler (e.g., .\build\ParticleSimulation.exe)
+
+# Run the executable (Linux/macOS)
+./build/ParticleSimulation
+```
